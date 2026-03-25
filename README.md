@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# IMDB-SCRAPER Dashboard 🎬
 
-## Getting Started
+A web application designed to track movies currently playing in cinemas, aggregate their review scores, and notify users about highly-rated films. 
 
-First, run the development server:
+The core feature is the **"SuperNota"**—an aggregated average score calculated from major review platforms to quickly determine if a movie is worth watching.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🎯 The Problem
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+I enjoy watching movies at the cinema, but I often miss good releases because I don't actively track what is currently playing or manually search for their ratings. If I knew a highly-rated movie was in theaters, I would go watch it. 
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## 💡 The Solution
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This project automates the discovery process. It identifies currently playing movies, scrapes their ratings across major platforms, calculates a unified "SuperNota," and organizes them on a clean dashboard. In the future, it will send automated WhatsApp alerts when a movie surpasses a user-defined score threshold.
 
-## Learn More
+## 🚀 Current Status
 
-To learn more about Next.js, take a look at the following resources:
+The project is in early development. Currently implemented:
+* **Frontend Dashboard:** A basic UI built with Next.js displaying movies.
+* **Web Scraping:** Puppeteer is configured to scrape scores from IMDb and Rotten Tomatoes.
+* **API Integration:** Fetching movie posters and additional metadata using the OMDb API.
+* **Data State:** The initial movie list is currently mocked for testing purposes.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🛠 Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Current:**
+* **Frontend:** Next.js, React, Tailwind CSS
+* **Backend/Scraping:** Node.js, Puppeteer
+* **External APIs:** OMDb API
 
-## Deploy on Vercel
+**Planned Infrastructure (Self-Hosted):**
+* **Server:** DigitalOcean VPS (Student Pack)
+* **Automation:** n8n
+* **Messaging:** Evolution API (WhatsApp integration)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🗺 Roadmap & Planned Features
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [x] Create basic Next.js dashboard UI.
+- [x] Implement Puppeteer scraping for IMDb and Rotten Tomatoes.
+- [x] Fetch movie posters via OMDb API.
+- [ ] **Dynamic Movie List:** Replace mocked data with a live feed of "Currently in Theaters" movies.
+- [ ] **Metascore Integration:** Add Metascore to the web scraper.
+- [ ] **SuperNota Calculation:** Implement the logic to average the three scores into the main branding metric.
+- [ ] **Sorting:** Automatically sort the dashboard from highest SuperNota to lowest.
+- [ ] **WhatsApp Notifications:** Allow users to set a threshold (e.g., > 7) and receive alerts via Evolution API and n8n.
+- [ ] **Deployment:** Set up a DigitalOcean VPS to host the application and scraping scripts.
+
+## 💻 How to Run Locally
+
+1. Clone the repository:
+   ```bash
+   git clone [https://github.com/yourusername/supernota-dashboard.git](https://github.com/yourusername/supernota-dashboard.git)
