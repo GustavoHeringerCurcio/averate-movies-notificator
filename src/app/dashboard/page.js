@@ -2,7 +2,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import MovieCard from './components/MovieCard';
-import { fetchMoviesByTitles } from '@/lib/services/omdb.js';
+import { fetchRatingsByImdbIds } from '@/lib/services/omdb.js';
 
 const NOW_PLAYING_LANGUAGE = 'en-US';
 const MIN_DASHBOARD_POPULARITY = 30.000;
@@ -32,6 +32,23 @@ function logTmdbSignalsForEveryMovie(movies) {
       `[TMDB-SIGNALS] ${movie.title} | popularity: ${movie.popularity ?? 'not-found'} | vote_average: ${movie.voteAverage ?? 'not-found'} | vote_count: ${movie.voteCount ?? 'not-found'}`
     );
   });
+}
+
+function buildTmdbBaseMovie(movie) {
+  return {
+    id: movie.id,
+    tmdbId: movie.tmdbId,
+    imdbID: movie.imdbId || null,
+    releaseDate: movie.releaseDate,
+    title: movie.title,
+    poster: movie.poster,
+    imdbRating: 'not-found',
+    imdbStatus: movie.imdbId ? 'omdb-pending' : 'omdb-missing-imdb-id',
+    rottenTomatoes: 'not-found',
+    rottenTomatoesStatus: movie.imdbId ? 'omdb-pending' : 'omdb-missing-imdb-id',
+    metascore: 'not-found',
+    metascoreStatus: movie.imdbId ? 'omdb-pending' : 'omdb-missing-imdb-id',
+  };
 }
 
 export default function MovieDashboard() {
@@ -67,36 +84,47 @@ export default function MovieDashboard() {
         return;
       }
 
-      const fallbackByTitle = Object.fromEntries(
-        popularNowPlayingMovies.map((movie) => [movie.title, movie])
-      );
-
-      const movieTitles = popularNowPlayingMovies.map((movie) => movie.title);
-      let baseMovies;
+      const baseMovies = popularNowPlayingMovies.map(buildTmdbBaseMovie);
 
       try {
-        baseMovies = await fetchMoviesByTitles(movieTitles, {
-          fallbackByTitle,
+        const ratings = await fetchRatingsByImdbIds(popularNowPlayingMovies);
+        const ratingsByMovieId = Object.fromEntries(
+          ratings.map((rating) => [rating.id, rating])
+        );
+
+        const mergedMovies = baseMovies.map((movie) => {
+          const rating = ratingsByMovieId[movie.id];
+
+          if (!rating) {
+            return movie;
+          }
+
+          return {
+            ...movie,
+            imdbID: rating.imdbID || movie.imdbID,
+            imdbRating: rating.imdbRating,
+            imdbStatus: rating.imdbStatus,
+            rottenTomatoes: rating.rottenTomatoes,
+            rottenTomatoesStatus: rating.rottenTomatoesStatus,
+            metascore: rating.metascore,
+            metascoreStatus: rating.metascoreStatus,
+          };
         });
+
+        setMovies(mergedMovies);
       } catch {
-        baseMovies = popularNowPlayingMovies.map((movie) => ({
-          id: movie.id,
-          tmdbId: movie.tmdbId,
-          releaseDate: movie.releaseDate,
-          title: movie.title,
-          imdbID: null,
-          rottenTomatoesSlug: null,
-          poster: movie.poster,
-          imdbRating: 'not-found',
-          imdbStatus: 'omdb-request-failed',
-          rottenTomatoes: 'not-found',
-          rottenTomatoesStatus: 'omdb-request-failed',
-          metascore: 'not-found',
-          metascoreStatus: 'omdb-request-failed',
+        const failedRatingsMovies = baseMovies.map((movie) => ({
+          ...movie,
+          imdbStatus: movie.imdbID ? 'omdb-request-failed' : 'omdb-missing-imdb-id',
+          rottenTomatoesStatus: movie.imdbID
+            ? 'omdb-request-failed'
+            : 'omdb-missing-imdb-id',
+          metascoreStatus: movie.imdbID ? 'omdb-request-failed' : 'omdb-missing-imdb-id',
         }));
+
+        setMovies(failedRatingsMovies);
       }
 
-      setMovies(baseMovies);
     } catch {
       setError('Could not load movie data from TMDB/OMDb.');
     } finally {

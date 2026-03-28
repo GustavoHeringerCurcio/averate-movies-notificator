@@ -49,6 +49,7 @@ function mapNowPlayingMovie(movie, index, page) {
   return {
     id: `tmdb-${movie.id}`,
     tmdbId: String(movie.id),
+    imdbId: null,
     title: movie.title || movie.original_title || `Movie ${index + 1}`,
     poster: movie.poster_path ? `${TMDB_IMAGE_BASE_URL}${movie.poster_path}` : null,
     releaseDate: movie.release_date || null,
@@ -59,6 +60,15 @@ function mapNowPlayingMovie(movie, index, page) {
     voteCount: movie.vote_count ?? null,
     page,
   };
+}
+
+async function fetchMovieImdbId(tmdbId) {
+  try {
+    const payload = await fetchTmdbList(`/movie/${tmdbId}/external_ids`, {});
+    return payload?.imdb_id || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getNowPlayingMovies({
@@ -75,10 +85,16 @@ export async function getNowPlayingMovies({
   });
 
   const results = Array.isArray(payload?.results) ? payload.results : [];
-  const movies = results.map((movie, index) => mapNowPlayingMovie(movie, index, resolvedPage));
+  const baseMovies = results.map((movie, index) => mapNowPlayingMovie(movie, index, resolvedPage));
+  const moviesWithImdbIds = await Promise.all(
+    baseMovies.map(async (movie) => ({
+      ...movie,
+      imdbId: await fetchMovieImdbId(movie.tmdbId),
+    }))
+  );
 
   return {
-    movies,
+    movies: moviesWithImdbIds,
     page: resolvedPage,
     totalPages: Number(payload?.total_pages || 0),
     totalResults: Number(payload?.total_results || 0),

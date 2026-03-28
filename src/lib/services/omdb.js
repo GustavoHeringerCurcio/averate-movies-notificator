@@ -1,6 +1,4 @@
 const OMDB_API_KEY = process.env.NEXT_PUBLIC_OMDB_API_KEY || 'd81d197';
-const ROTTEN_TOMATOES_SLUG_OVERRIDES = {};
-const FALLBACK_POSTER = 'https://placehold.co/400x600?text=No+Poster';
 
 function parseRottenTomatoesFromRatings(ratings) {
   if (!Array.isArray(ratings)) {
@@ -11,73 +9,41 @@ function parseRottenTomatoesFromRatings(ratings) {
   return rt?.Value || null;
 }
 
-function toOmdbRating(value, isMatch) {
-  if (!isMatch) {
+function toOmdbRating(value, statusWhenMissingMatch) {
+  if (statusWhenMissingMatch) {
     return {
-      value: null,
-      status: 'omdb-no-match',
+      value: 'not-found',
+      status: statusWhenMissingMatch,
     };
   }
 
   if (!value || value === 'N/A') {
     return {
-      value: null,
+      value: 'not-found',
       status: 'omdb-not-rated-yet',
     };
   }
 
   return {
     value,
-    status: 'omdb',
+    status: 'ok',
   };
 }
 
-function buildRottenTomatoesSlug(title, releaseYear) {
-  if (!title) {
-    return null;
-  }
-
-  const normalized = title
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/&/g, 'and')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .replace(/_+/g, '_');
-
-  if (!normalized) {
-    return null;
-  }
-
-  return releaseYear ? `${normalized}_${releaseYear}` : normalized;
-}
-
-function mapMovieResponse(movie, title, index, fallbackMovie = null) {
+function mapMovieRatingsResponse(movie, fallbackMovie) {
   const isValid = movie?.Response === 'True';
-  const effectiveTitle = isValid ? movie.Title : title;
-  const parsedYear = movie?.Year ? Number.parseInt(movie.Year, 10) : Number.NaN;
-  const releaseYear = Number.isFinite(parsedYear) ? parsedYear : null;
-  const rtSlug =
-    ROTTEN_TOMATOES_SLUG_OVERRIDES[effectiveTitle] ||
-    buildRottenTomatoesSlug(effectiveTitle, releaseYear);
-
-
-  const imdb = toOmdbRating(movie?.imdbRating, isValid);
-  const metascore = toOmdbRating(movie?.Metascore, isValid);
-  const rottenTomatoes = toOmdbRating(parseRottenTomatoesFromRatings(movie?.Ratings), isValid);
+  const noMatchStatus = isValid ? null : 'omdb-no-match';
+  const imdb = toOmdbRating(movie?.imdbRating, noMatchStatus);
+  const metascore = toOmdbRating(movie?.Metascore, noMatchStatus);
+  const rottenTomatoes = toOmdbRating(
+    parseRottenTomatoesFromRatings(movie?.Ratings),
+    noMatchStatus
+  );
 
   return {
-    id: fallbackMovie?.id || `${title}-${index}`,
-    tmdbId: fallbackMovie?.tmdbId || null,
-    releaseDate: fallbackMovie?.releaseDate || null,
-    title: effectiveTitle,
-    imdbID: isValid ? movie.imdbID : null,
-    rottenTomatoesSlug: rtSlug,
-    poster:
-      isValid && movie.Poster !== 'N/A'
-        ? movie.Poster
-        : fallbackMovie?.poster || FALLBACK_POSTER,
+    id: fallbackMovie.id,
+    tmdbId: fallbackMovie.tmdbId,
+    imdbID: isValid ? movie.imdbID || fallbackMovie.imdbId || null : fallbackMovie.imdbId || null,
     imdbRating: imdb.value,
     imdbStatus: imdb.status,
     rottenTomatoes: rottenTomatoes.value,
@@ -87,25 +53,52 @@ function mapMovieResponse(movie, title, index, fallbackMovie = null) {
   };
 }
 
-export async function fetchMoviesByTitles(movieTitles, options = {}) {
-  if (!Array.isArray(movieTitles) || movieTitles.length === 0) {
+function buildMissingImdbIdRatings(movie) {
+  return {
+    id: movie.id,
+    tmdbId: movie.tmdbId,
+    imdbID: null,
+    imdbRating: 'not-found',
+    imdbStatus: 'omdb-missing-imdb-id',
+    rottenTomatoes: 'not-found',
+    rottenTomatoesStatus: 'omdb-missing-imdb-id',
+    metascore: 'not-found',
+    metascoreStatus: 'omdb-missing-imdb-id',
+  };
+}
+
+function buildRequestFailedRatings(movie) {
+  return {
+    id: movie.id,
+    tmdbId: movie.tmdbId,
+    imdbID: movie.imdbId || null,
+    imdbRating: 'not-found',
+    imdbStatus: 'omdb-request-failed',
+    rottenTomatoes: 'not-found',
+    rottenTomatoesStatus: 'omdb-request-failed',
+    metascore: 'not-found',
+    metascoreStatus: 'omdb-request-failed',
+  };
+}
+
+export async function fetchRatingsByImdbIds(movies) {
+  if (!Array.isArray(movies) || movies.length === 0) {
     return [];
   }
 
-  const fallbackByTitle = options?.fallbackByTitle || {};
+  const requests = movies.map(async (movie) => {
+    if (!movie?.imdbId) {
+      return buildMissingImdbIdRatings(movie);
+    }
 
-
-  const requests = movieTitles.map((title) => {
-    const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_API_KEY}`;
-    return fetch(url).then((response) => response.json());
+    try {
+      const url = `https://www.omdbapi.com/?i=${encodeURIComponent(movie.imdbId)}&apikey=${OMDB_API_KEY}`;
+      const payload = await fetch(url).then((response) => response.json());
+      return mapMovieRatingsResponse(payload, movie);
+    } catch {
+      return buildRequestFailedRatings(movie);
+    }
   });
 
-  const results = await Promise.all(requests);
-  const mapped = results.map((movie, index) => {
-    const title = movieTitles[index];
-    return mapMovieResponse(movie, title, index, fallbackByTitle[title] || null);
-  });
-
-
-  return mapped;
+  return await Promise.all(requests);
 }
