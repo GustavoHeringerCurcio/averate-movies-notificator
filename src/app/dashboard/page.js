@@ -6,6 +6,7 @@ import { fetchRatingsByImdbIds } from '@/lib/services/omdb.js';
 
 const NOW_PLAYING_LANGUAGE = 'en-US';
 const MIN_DASHBOARD_POPULARITY = 30.000;
+const DEFAULT_NOTIFICATION_PROVIDER = 'discord';
 
 async function fetchNowPlayingMovies() {
   const response = await fetch(
@@ -23,6 +24,24 @@ async function fetchNowPlayingMovies() {
 
   const payload = await response.json();
   return Array.isArray(payload?.movies) ? payload.movies : [];
+}
+
+async function sendTestNotification(provider) {
+  const response = await fetch('/api/notifications/test', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ provider }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(payload.error || 'Failed to send notification test message.');
+  }
+
+  return payload;
 }
 
 function logTmdbSignalsForEveryMovie(movies) {
@@ -56,6 +75,12 @@ export default function MovieDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [emptyMessage, setEmptyMessage] = useState('');
+  const [notificationProvider, setNotificationProvider] = useState(
+    DEFAULT_NOTIFICATION_PROVIDER
+  );
+  const [sendingNotification, setSendingNotification] = useState(false);
+  const [notificationSuccess, setNotificationSuccess] = useState('');
+  const [notificationError, setNotificationError] = useState('');
 
   const loadMovies = async () => {
     setLoading(true);
@@ -136,6 +161,25 @@ export default function MovieDashboard() {
     loadMovies();
   }, []);
 
+  const handleSendTestNotification = async () => {
+    setNotificationSuccess('');
+    setNotificationError('');
+    setSendingNotification(true);
+
+    try {
+      const payload = await sendTestNotification(notificationProvider);
+      setNotificationSuccess(payload?.message || 'Test message sent successfully.');
+    } catch (sendError) {
+      const message =
+        sendError instanceof Error
+          ? sendError.message
+          : 'Could not send test message to notification provider.';
+      setNotificationError(message);
+    } finally {
+      setSendingNotification(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 space-y-4">
@@ -146,7 +190,36 @@ export default function MovieDashboard() {
               Showing now-playing movies in Brazil from TMDB with OMDb ratings.
             </p>
           </div>
+
+          <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-2 sm:items-center">
+            <select
+              value={notificationProvider}
+              onChange={(event) => setNotificationProvider(event.target.value)}
+              disabled={sendingNotification}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm bg-white"
+              aria-label="Notification provider"
+            >
+              <option value="discord">Discord</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={handleSendTestNotification}
+              disabled={sendingNotification}
+              className="px-4 py-2 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {sendingNotification ? 'Sending...' : 'Send test message'}
+            </button>
+          </div>
         </div>
+
+        {notificationSuccess && (
+          <p className="text-sm text-emerald-700">{notificationSuccess}</p>
+        )}
+
+        {notificationError && (
+          <p className="text-sm text-red-600">{notificationError}</p>
+        )}
 
         {loading && <p className="text-sm text-blue-700">Loading movies...</p>}
 
