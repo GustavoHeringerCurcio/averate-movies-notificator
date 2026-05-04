@@ -5,7 +5,7 @@ import {
   readRatingsStore,
   resetMonthlyQuotaIfNeeded,
   writeRatingsStore,
-} from '@/lib/services/ratingsStore.js';
+} from '@/lib/services/ratingsStoreBackend.js';
 
 export const runtime = 'nodejs';
 

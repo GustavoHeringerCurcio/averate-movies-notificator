@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readRatingsStore, resetMonthlyQuotaIfNeeded, writeRatingsStore } from '@/lib/services/ratingsStore.js';
+import { readRatingsStore, resetMonthlyQuotaIfNeeded, writeRatingsStore } from '@/lib/services/ratingsStoreBackend.js';
 
 export const runtime = 'nodejs';
 
