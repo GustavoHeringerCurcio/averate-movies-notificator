@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: 'Averate',
-  description: 'Averate dashboard for now-playing movies with cached RapidAPI ratings.',
+  description: 'Averate dashboard for now-playing movies with Supabase-backed RapidAPI ratings.',
 };
 
 export default function RootLayout({ children }) {

@@ -1,7 +1,8 @@
 import { getSupabaseAdminClient } from '@/lib/supabase/adminClient.js';
 
-const TABLE_NAME = 'ratings_store';
-const PRIMARY_ID = 'main';
+const RATINGS_TABLE = 'ratings_store';
+const META_TABLE = 'ratings_meta';
+const META_ID = 'main';
 
 const INITIAL_STORE = {
   version: 1,
@@ -31,19 +32,18 @@ function normalizeStore(rawStore) {
   };
 }
 
-function toDbRow(store) {
+function toMetaRow(store) {
   const normalized = normalizeStore(store);
 
   return {
-    id: PRIMARY_ID,
+    id: META_ID,
     month_key: normalized.monthKey,
     requests_used: normalized.requestsUsed,
     last_refresh_at: normalized.lastRefreshAt,
-    ratings_by_imdb_id: normalized.ratingsByImdbId,
   };
 }
 
-function fromDbRow(row) {
+function fromMetaRow(row) {
   if (!row) {
     return normalizeStore(INITIAL_STORE);
   }
@@ -52,8 +52,44 @@ function fromDbRow(row) {
     monthKey: row.month_key,
     requestsUsed: row.requests_used,
     lastRefreshAt: row.last_refresh_at,
-    ratingsByImdbId: row.ratings_by_imdb_id,
   });
+}
+
+function toRatingRow(imdbId, rating, nowIso) {
+  return {
+    imdb_id: imdbId,
+    tmdb_id: rating.tmdbId ?? null,
+    title: rating.title ?? null,
+    poster: rating.poster ?? null,
+    release_date: rating.releaseDate ?? null,
+    imdb_rating: rating.imdbRating ?? null,
+    imdb_status: rating.imdbStatus ?? null,
+    rotten_tomatoes: rating.rottenTomatoes ?? null,
+    rotten_tomatoes_status: rating.rottenTomatoesStatus ?? null,
+    metascore: rating.metascore ?? null,
+    metascore_status: rating.metascoreStatus ?? null,
+    source: rating.source ?? null,
+    fetched_at: rating.fetchedAt ?? null,
+    updated_at: nowIso,
+  };
+}
+
+function fromRatingRow(row) {
+  return {
+    imdbId: row.imdb_id ?? null,
+    imdbRating: row.imdb_rating ?? 'not-found',
+    imdbStatus: row.imdb_status ?? 'not-found',
+    rottenTomatoes: row.rotten_tomatoes ?? 'not-found',
+    rottenTomatoesStatus: row.rotten_tomatoes_status ?? 'not-found',
+    metascore: row.metascore ?? 'not-found',
+    metascoreStatus: row.metascore_status ?? 'not-found',
+    source: row.source ?? 'rapidapi',
+    fetchedAt: row.fetched_at ?? null,
+    title: row.title ?? null,
+    poster: row.poster ?? null,
+    releaseDate: row.release_date ?? null,
+    tmdbId: row.tmdb_id ?? null,
+  };
 }
 
 export function canUseSupabaseRatingsStore() {
@@ -69,34 +105,55 @@ export async function readRatingsStoreSupabase() {
     throw new Error(error || 'Supabase admin client not configured.');
   }
 
-  const { data, error: readError, status } = await client
-    .from(TABLE_NAME)
-    .select('id, month_key, requests_used, last_refresh_at, ratings_by_imdb_id')
-    .eq('id', PRIMARY_ID)
+  const { data: metaRow, error: metaError, status: metaStatus } = await client
+    .from(META_TABLE)
+    .select('id, month_key, requests_used, last_refresh_at')
+    .eq('id', META_ID)
     .maybeSingle();
 
-  if (readError) {
-    throw new Error(`${readError.message} (status ${status})`);
+  if (metaError) {
+    throw new Error(`${metaError.message} (status ${metaStatus})`);
   }
 
-  if (data) {
-    return fromDbRow(data);
-  }
-
-  const initial = normalizeStore({
+  let baseStore = metaRow ? fromMetaRow(metaRow) : normalizeStore({
     ...INITIAL_STORE,
     monthKey: getMonthKey(),
   });
 
-  const { error: upsertError, status: upsertStatus } = await client
-    .from(TABLE_NAME)
-    .upsert(toDbRow(initial), { onConflict: 'id' });
+  if (!metaRow) {
+    const { error: insertMetaError, status: insertMetaStatus } = await client
+      .from(META_TABLE)
+      .insert(toMetaRow(baseStore));
 
-  if (upsertError) {
-    throw new Error(`${upsertError.message} (status ${upsertStatus})`);
+    if (insertMetaError) {
+      throw new Error(`${insertMetaError.message} (status ${insertMetaStatus})`);
+    }
   }
 
-  return initial;
+  const { data: ratingRows, error: ratingsError, status: ratingsStatus } = await client
+    .from(RATINGS_TABLE)
+    .select(
+      'imdb_id, tmdb_id, title, poster, release_date, imdb_rating, imdb_status, rotten_tomatoes, rotten_tomatoes_status, metascore, metascore_status, source, fetched_at'
+    );
+
+  if (ratingsError) {
+    throw new Error(`${ratingsError.message} (status ${ratingsStatus})`);
+  }
+
+  const ratingsByImdbId = {};
+  const rows = Array.isArray(ratingRows) ? ratingRows : [];
+  rows.forEach((row) => {
+    if (row?.imdb_id) {
+      ratingsByImdbId[row.imdb_id] = fromRatingRow(row);
+    }
+  });
+
+  baseStore = {
+    ...baseStore,
+    ratingsByImdbId,
+  };
+
+  return baseStore;
 }
 
 export async function writeRatingsStoreSupabase(store) {
@@ -108,12 +165,27 @@ export async function writeRatingsStoreSupabase(store) {
 
   const normalized = normalizeStore(store);
 
-  const { error: upsertError, status } = await client
-    .from(TABLE_NAME)
-    .upsert(toDbRow(normalized), { onConflict: 'id' });
+  const { error: metaError, status: metaStatus } = await client
+    .from(META_TABLE)
+    .upsert(toMetaRow(normalized), { onConflict: 'id' });
 
-  if (upsertError) {
-    throw new Error(`${upsertError.message} (status ${status})`);
+  if (metaError) {
+    throw new Error(`${metaError.message} (status ${metaStatus})`);
+  }
+
+  const nowIso = new Date().toISOString();
+  const ratingRows = Object.entries(normalized.ratingsByImdbId || {})
+    .filter(([imdbId]) => Boolean(imdbId))
+    .map(([imdbId, rating]) => toRatingRow(imdbId, rating, nowIso));
+
+  if (ratingRows.length > 0) {
+    const { error: ratingsError, status: ratingsStatus } = await client
+      .from(RATINGS_TABLE)
+      .upsert(ratingRows, { onConflict: 'imdb_id' });
+
+    if (ratingsError) {
+      throw new Error(`${ratingsError.message} (status ${ratingsStatus})`);
+    }
   }
 
   return normalized;

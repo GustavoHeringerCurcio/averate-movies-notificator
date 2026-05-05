@@ -8,6 +8,12 @@ function requireRapidApiConfig() {
       'RapidAPI config missing. Set RAPIDAPI_KEY, RAPIDAPI_HOST, and RAPIDAPI_RATINGS_URL_TEMPLATE.'
     );
   }
+
+  if (!RAPIDAPI_RATINGS_URL_TEMPLATE.includes('{imdbId}')) {
+    throw new Error(
+      'RapidAPI URL template must include {imdbId} placeholder.'
+    );
+  }
 }
 
 function buildRatingsUrl(imdbId) {
