@@ -14,8 +14,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Data Flow
 
 - /api/movies/now-playing -> TMDB
-- /api/ratings/refresh -> RapidAPI -> Supabase ratings_store
-- /api/ratings/cached -> Supabase ratings_store -> UI
+- /api/ratings/refresh -> RapidAPI -> Supabase movies
+- /api/ratings/cached -> Supabase movies -> UI
 - /api/notifications/test -> Discord webhook
 
 # Structure Notes

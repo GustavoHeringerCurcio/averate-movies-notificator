@@ -2,7 +2,7 @@
 
 This project uses a normalized Supabase schema with two tables:
 
-- ratings_store: one row per imdb_id
+- movies: one row per imdb_id
 - ratings_meta: single row for quota and refresh metadata
 
 ## Migration (from old content JSON)
@@ -24,10 +24,11 @@ create table if not exists public.ratings_meta (
   last_refresh_at timestamptz null
 );
 
-create table if not exists public.ratings_store (
+create table if not exists public.movies (
   imdb_id text primary key,
   tmdb_id text null,
   title text null,
+  overview text null,
   poster text null,
   release_date date null,
   imdb_rating text null,
@@ -41,8 +42,8 @@ create table if not exists public.ratings_store (
   updated_at timestamptz null
 );
 
-create index if not exists ratings_store_fetched_at_idx
-  on public.ratings_store (fetched_at desc);
+create index if not exists movies_fetched_at_idx
+  on public.movies (fetched_at desc);
 ```
 
 Notes:

@@ -3,8 +3,7 @@
 ## Requirements
 
 - Node.js 18+
-- Supabase project with a ratings_store table (single-row JSONB store)
- - Supabase project with normalized ratings tables (see docs/db.md)
+- Supabase project with normalized ratings tables (see docs/db.md)
 
 ## Environment Variables
 

@@ -2,7 +2,28 @@ const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 const RAPIDAPI_HOST = process.env.RAPIDAPI_HOST;
 const RAPIDAPI_RATINGS_URL_TEMPLATE = process.env.RAPIDAPI_RATINGS_URL_TEMPLATE;
 
+function logMissingRapidApiConfig() {
+  const missing = [];
+
+  if (!RAPIDAPI_KEY) {
+    missing.push('RAPIDAPI_KEY');
+  }
+
+  if (!RAPIDAPI_HOST) {
+    missing.push('RAPIDAPI_HOST');
+  }
+
+  if (!RAPIDAPI_RATINGS_URL_TEMPLATE) {
+    missing.push('RAPIDAPI_RATINGS_URL_TEMPLATE');
+  }
+
+  if (missing.length > 0) {
+    console.warn(`[RapidAPI] Missing env vars: ${missing.join(', ')}`);
+  }
+}
+
 function requireRapidApiConfig() {
+  logMissingRapidApiConfig();
   if (!RAPIDAPI_KEY || !RAPIDAPI_HOST || !RAPIDAPI_RATINGS_URL_TEMPLATE) {
     throw new Error(
       'RapidAPI config missing. Set RAPIDAPI_KEY, RAPIDAPI_HOST, and RAPIDAPI_RATINGS_URL_TEMPLATE.'

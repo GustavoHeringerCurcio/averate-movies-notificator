@@ -28,17 +28,22 @@ function formatRatingValue(value) {
   return String(value);
 }
 
-function shouldShowStatus(status) {
+function formatStatusLabel(status) {
   if (!status || status === 'ok') {
-    return false;
+    return null;
   }
 
-  // Hide this fallback status because it creates noisy wrapping beside N/A.
-  if (status === 'rapidapi-not-rated-yet') {
-    return false;
-  }
+  const labels = {
+    'rapidapi-not-fetched-yet': 'Pending refresh',
+    'rapidapi-not-rated-yet': 'Pending rating',
+    'rapidapi-missing-imdb-id': 'Missing IMDb ID',
+  };
 
-  return true;
+  return labels[status] || 'Pending update';
+}
+
+function shouldShowStatus(status) {
+  return Boolean(formatStatusLabel(status));
 }
 
 export default function MovieCard({ movie }) {
@@ -70,7 +75,7 @@ export default function MovieCard({ movie }) {
             <span className="averate-rating-label">IMDb</span>
             <span className="averate-rating-value">{formatRatingValue(movie.imdbRating)}</span>
             {shouldShowStatus(movie.imdbStatus) && (
-              <span className="averate-rating-status">{movie.imdbStatus}</span>
+              <span className="averate-rating-status">{formatStatusLabel(movie.imdbStatus)}</span>
             )}
           </div>
 
@@ -81,7 +86,9 @@ export default function MovieCard({ movie }) {
             <span className="averate-rating-label">Rotten Tomatoes</span>
             <span className="averate-rating-value">{formatRatingValue(movie.rottenTomatoes)}</span>
             {shouldShowStatus(movie.rottenTomatoesStatus) && (
-              <span className="averate-rating-status">{movie.rottenTomatoesStatus}</span>
+              <span className="averate-rating-status">
+                {formatStatusLabel(movie.rottenTomatoesStatus)}
+              </span>
             )}
           </div>
 
@@ -92,7 +99,7 @@ export default function MovieCard({ movie }) {
             <span className="averate-rating-label">Metascore</span>
             <span className="averate-rating-value">{formatRatingValue(movie.metascore)}</span>
             {shouldShowStatus(movie.metascoreStatus) && (
-              <span className="averate-rating-status">{movie.metascoreStatus}</span>
+              <span className="averate-rating-status">{formatStatusLabel(movie.metascoreStatus)}</span>
             )}
           </div>
         </div>

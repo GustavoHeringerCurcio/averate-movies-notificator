@@ -46,6 +46,7 @@ function applyMovieData(rating, movie) {
   return {
     ...rating,
     title: movie.title,
+    overview: movie.overview,
     poster: movie.poster,
     releaseDate: movie.releaseDate,
     tmdbId: movie.tmdbId,
@@ -119,6 +120,7 @@ export async function POST(request) {
     let skippedCached = 0;
     let fetchedCount = 0;
     let failedCount = 0;
+    const failedDetails = [];
 
     const candidates = [];
     for (const [imdbId, movie] of dedupedByImdbId.entries()) {
@@ -141,7 +143,9 @@ export async function POST(request) {
         const rating = await fetchRapidApiRatingsByImdbId(candidate.imdbId);
         ratingsByImdbId[candidate.imdbId] = applyMovieData(rating, candidate.movie);
         fetchedCount += 1;
-      } catch {
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        failedDetails.push({ imdbId: candidate.imdbId, error: errorMsg });
         failedCount += 1;
       }
     }
@@ -167,6 +171,7 @@ export async function POST(request) {
         failedCount,
         skippedCached,
         skippedByQuota,
+        failedDetails,
       },
       quota: {
         monthKey: updatedStore.monthKey,

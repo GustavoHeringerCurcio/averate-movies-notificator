@@ -1,6 +1,6 @@
 import { getSupabaseAdminClient } from '@/lib/supabase/adminClient.js';
 
-const RATINGS_TABLE = 'ratings_store';
+const MOVIES_TABLE = 'movies';
 const META_TABLE = 'ratings_meta';
 const META_ID = 'main';
 
@@ -60,6 +60,7 @@ function toRatingRow(imdbId, rating, nowIso) {
     imdb_id: imdbId,
     tmdb_id: rating.tmdbId ?? null,
     title: rating.title ?? null,
+    overview: rating.overview ?? null,
     poster: rating.poster ?? null,
     release_date: rating.releaseDate ?? null,
     imdb_rating: rating.imdbRating ?? null,
@@ -86,6 +87,7 @@ function fromRatingRow(row) {
     source: row.source ?? 'rapidapi',
     fetchedAt: row.fetched_at ?? null,
     title: row.title ?? null,
+    overview: row.overview ?? null,
     poster: row.poster ?? null,
     releaseDate: row.release_date ?? null,
     tmdbId: row.tmdb_id ?? null,
@@ -131,9 +133,9 @@ export async function readRatingsStoreSupabase() {
   }
 
   const { data: ratingRows, error: ratingsError, status: ratingsStatus } = await client
-    .from(RATINGS_TABLE)
+    .from(MOVIES_TABLE)
     .select(
-      'imdb_id, tmdb_id, title, poster, release_date, imdb_rating, imdb_status, rotten_tomatoes, rotten_tomatoes_status, metascore, metascore_status, source, fetched_at'
+      'imdb_id, tmdb_id, title, overview, poster, release_date, imdb_rating, imdb_status, rotten_tomatoes, rotten_tomatoes_status, metascore, metascore_status, source, fetched_at'
     );
 
   if (ratingsError) {
@@ -180,7 +182,7 @@ export async function writeRatingsStoreSupabase(store) {
 
   if (ratingRows.length > 0) {
     const { error: ratingsError, status: ratingsStatus } = await client
-      .from(RATINGS_TABLE)
+      .from(MOVIES_TABLE)
       .upsert(ratingRows, { onConflict: 'imdb_id' });
 
     if (ratingsError) {
