@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readRatingsStore } from '@/lib/services/ratingsStoreBackend.js';
+import { readRatingsStore } from '@/lib/services/ratingsStoreSupabase.js';
 
 export const runtime = 'nodejs';
 

@@ -1,8 +1,6 @@
 import { getSupabaseAdminClient } from '@/lib/supabase/adminClient.js';
 
 const MOVIES_TABLE = 'movies';
-const META_TABLE = 'ratings_meta';
-const META_ID = 'main';
 
 const INITIAL_STORE = {
   version: 1,
@@ -32,28 +30,6 @@ function normalizeStore(rawStore) {
   };
 }
 
-function toMetaRow(store) {
-  const normalized = normalizeStore(store);
-
-  return {
-    id: META_ID,
-    month_key: normalized.monthKey,
-    requests_used: normalized.requestsUsed,
-    last_refresh_at: normalized.lastRefreshAt,
-  };
-}
-
-function fromMetaRow(row) {
-  if (!row) {
-    return normalizeStore(INITIAL_STORE);
-  }
-
-  return normalizeStore({
-    monthKey: row.month_key,
-    requestsUsed: row.requests_used,
-    lastRefreshAt: row.last_refresh_at,
-  });
-}
 
 function toRatingRow(imdbId, rating, nowIso) {
   return {
@@ -100,37 +76,17 @@ export function canUseSupabaseRatingsStore() {
   return Boolean(url && serviceRoleKey);
 }
 
-export async function readRatingsStoreSupabase() {
+export async function readRatingsStore() {
   const { client, error } = getSupabaseAdminClient();
 
   if (error || !client) {
     throw new Error(error || 'Supabase admin client not configured.');
   }
 
-  const { data: metaRow, error: metaError, status: metaStatus } = await client
-    .from(META_TABLE)
-    .select('id, month_key, requests_used, last_refresh_at')
-    .eq('id', META_ID)
-    .maybeSingle();
-
-  if (metaError) {
-    throw new Error(`${metaError.message} (status ${metaStatus})`);
-  }
-
-  let baseStore = metaRow ? fromMetaRow(metaRow) : normalizeStore({
+  let baseStore = normalizeStore({
     ...INITIAL_STORE,
     monthKey: getMonthKey(),
   });
-
-  if (!metaRow) {
-    const { error: insertMetaError, status: insertMetaStatus } = await client
-      .from(META_TABLE)
-      .insert(toMetaRow(baseStore));
-
-    if (insertMetaError) {
-      throw new Error(`${insertMetaError.message} (status ${insertMetaStatus})`);
-    }
-  }
 
   const { data: ratingRows, error: ratingsError, status: ratingsStatus } = await client
     .from(MOVIES_TABLE)
@@ -158,7 +114,7 @@ export async function readRatingsStoreSupabase() {
   return baseStore;
 }
 
-export async function writeRatingsStoreSupabase(store) {
+export async function writeRatingsStore(store) {
   const { client, error } = getSupabaseAdminClient();
 
   if (error || !client) {
@@ -167,13 +123,6 @@ export async function writeRatingsStoreSupabase(store) {
 
   const normalized = normalizeStore(store);
 
-  const { error: metaError, status: metaStatus } = await client
-    .from(META_TABLE)
-    .upsert(toMetaRow(normalized), { onConflict: 'id' });
-
-  if (metaError) {
-    throw new Error(`${metaError.message} (status ${metaStatus})`);
-  }
 
   const nowIso = new Date().toISOString();
   const ratingRows = Object.entries(normalized.ratingsByImdbId || {})
@@ -191,4 +140,18 @@ export async function writeRatingsStoreSupabase(store) {
   }
 
   return normalized;
+}
+
+export function resetMonthlyQuotaIfNeeded(store, now = new Date()) {
+  const monthKey = getMonthKey(now);
+
+  if (store?.monthKey === monthKey) {
+    return store;
+  }
+
+  return {
+    ...(store || {}),
+    monthKey,
+    requestsUsed: 0,
+  };
 }

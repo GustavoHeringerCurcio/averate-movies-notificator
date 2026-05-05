@@ -1,6 +1,6 @@
-﻿
+
 import { getNowPlayingMovies } from '@/lib/services/tmdb.js';
-import { readRatingsStore } from '@/lib/services/ratingsStoreBackend.js';
+import { readRatingsStore } from '@/lib/services/ratingsStoreSupabase.js';
 import MovieDashboardClient from './DashboardClient';
 
 export const dynamic = 'force-dynamic';
@@ -106,12 +106,17 @@ function mergeCachedRatings(baseMovies, ratingsByImdbId) {
       return movie;
     }
 
+    const imdbRating = cached.imdbRating ?? movie.imdbRating;
+    const rottenTomatoesFallback = (imdbRating && imdbRating !== 'not-found') 
+      ? `${(Number.parseFloat(imdbRating) * 10).toFixed(0)}%` 
+      : (cached.rottenTomatoes ?? movie.rottenTomatoes);
+
     return {
       ...movie,
       imdbID: cached.imdbId ?? movie.imdbID,
-      imdbRating: cached.imdbRating ?? movie.imdbRating,
+      imdbRating,
       imdbStatus: cached.imdbStatus ?? movie.imdbStatus,
-      rottenTomatoes: cached.rottenTomatoes ?? movie.rottenTomatoes,
+      rottenTomatoes: rottenTomatoesFallback,
       rottenTomatoesStatus: cached.rottenTomatoesStatus ?? movie.rottenTomatoesStatus,
       metascore: cached.metascore ?? movie.metascore,
       metascoreStatus: cached.metascoreStatus ?? movie.metascoreStatus,
@@ -156,7 +161,8 @@ async function loadDashboardData() {
     try {
       const store = await readRatingsStore();
       ratingsByImdbId = store?.ratingsByImdbId || {};
-    } catch {
+    } catch (err) {
+      console.error('Error reading ratings store:', err);
       ratingsByImdbId = {};
     }
 

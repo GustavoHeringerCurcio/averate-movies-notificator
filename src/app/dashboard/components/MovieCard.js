@@ -28,23 +28,6 @@ function formatRatingValue(value) {
   return String(value);
 }
 
-function formatStatusLabel(status) {
-  if (!status || status === 'ok') {
-    return null;
-  }
-
-  const labels = {
-    'rapidapi-not-fetched-yet': 'Pending refresh',
-    'rapidapi-not-rated-yet': 'Pending rating',
-    'rapidapi-missing-imdb-id': 'Missing IMDb ID',
-  };
-
-  return labels[status] || 'Pending update';
-}
-
-function shouldShowStatus(status) {
-  return Boolean(formatStatusLabel(status));
-}
 
 export default function MovieCard({ movie }) {
   const averateText = movie.averateDisplay === 'not-found' ? 'N/A' : movie.averateDisplay;
@@ -74,9 +57,6 @@ export default function MovieCard({ movie }) {
             </span>
             <span className="averate-rating-label">IMDb</span>
             <span className="averate-rating-value">{formatRatingValue(movie.imdbRating)}</span>
-            {shouldShowStatus(movie.imdbStatus) && (
-              <span className="averate-rating-status">{formatStatusLabel(movie.imdbStatus)}</span>
-            )}
           </div>
 
           <div className="averate-rating-row">
@@ -85,11 +65,6 @@ export default function MovieCard({ movie }) {
             </span>
             <span className="averate-rating-label">Rotten Tomatoes</span>
             <span className="averate-rating-value">{formatRatingValue(movie.rottenTomatoes)}</span>
-            {shouldShowStatus(movie.rottenTomatoesStatus) && (
-              <span className="averate-rating-status">
-                {formatStatusLabel(movie.rottenTomatoesStatus)}
-              </span>
-            )}
           </div>
 
           <div className="averate-rating-row">
@@ -98,9 +73,6 @@ export default function MovieCard({ movie }) {
             </span>
             <span className="averate-rating-label">Metascore</span>
             <span className="averate-rating-value">{formatRatingValue(movie.metascore)}</span>
-            {shouldShowStatus(movie.metascoreStatus) && (
-              <span className="averate-rating-status">{formatStatusLabel(movie.metascoreStatus)}</span>
-            )}
           </div>
         </div>
 

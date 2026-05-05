@@ -2,7 +2,7 @@ import {
   readRatingsStore,
   resetMonthlyQuotaIfNeeded,
   writeRatingsStore,
-} from '@/lib/services/ratingsStoreBackend.js';
+} from '@/lib/services/ratingsStoreSupabase.js';
 import SettingsClient from './SettingsClient';
 
 export const dynamic = 'force-dynamic';

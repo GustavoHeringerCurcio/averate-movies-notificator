@@ -3,14 +3,11 @@ import { getNowPlayingMovies } from '@/lib/services/tmdb.js';
 import { fetchRapidApiRatingsByImdbId } from '@/lib/services/ratingsRapidApi.js';
 import {
   readRatingsStore,
-  resetMonthlyQuotaIfNeeded,
   writeRatingsStore,
-} from '@/lib/services/ratingsStoreBackend.js';
+} from '@/lib/services/ratingsStoreSupabase.js';
 
 export const runtime = 'nodejs';
 
-const MONTHLY_LIMIT = 100;
-const REFRESH_COOLDOWN_HOURS = 24;
 const ENABLE_UNLIMITED_TEST_REFRESH = true;
 
 function parseIsoDate(value) {
@@ -79,43 +76,10 @@ export async function POST(request) {
     }
 
     let store = await readRatingsStore();
-    store = resetMonthlyQuotaIfNeeded(store);
 
     const now = new Date();
     const nowMs = now.getTime();
-    const lastRefreshDate = parseIsoDate(store.lastRefreshAt);
-
-    if (!bypassRefreshGuards && lastRefreshDate) {
-      const cooldownMs = REFRESH_COOLDOWN_HOURS * 60 * 60 * 1000;
-      const nextAllowedAtMs = lastRefreshDate.getTime() + cooldownMs;
-
-      if (nowMs < nextAllowedAtMs) {
-        return NextResponse.json(
-          {
-            error: 'Refresh cooldown active. Try again later or set force=true.',
-            nextAllowedAt: new Date(nextAllowedAtMs).toISOString(),
-          },
-          { status: 429 }
-        );
-      }
-    }
-
-    const remainingBudget = Math.max(0, MONTHLY_LIMIT - store.requestsUsed);
-    if (!bypassRefreshGuards && remainingBudget === 0) {
-      return NextResponse.json(
-        {
-          error: 'Monthly RapidAPI request limit reached.',
-          quota: {
-            monthKey: store.monthKey,
-            requestsUsed: store.requestsUsed,
-            monthlyLimit: MONTHLY_LIMIT,
-            unlimitedTestMode: ENABLE_UNLIMITED_TEST_REFRESH,
-          },
-        },
-        { status: 429 }
-      );
-    }
-
+    
     const ratingsByImdbId = { ...store.ratingsByImdbId };
     let skippedCached = 0;
     let fetchedCount = 0;
@@ -134,9 +98,7 @@ export async function POST(request) {
       candidates.push({ imdbId, movie });
     }
 
-    const limitedCandidates = bypassRefreshGuards
-      ? candidates
-      : candidates.slice(0, remainingBudget);
+    const limitedCandidates = candidates;
 
     for (const candidate of limitedCandidates) {
       try {
@@ -150,14 +112,9 @@ export async function POST(request) {
       }
     }
 
-    const skippedByQuota = Math.max(0, candidates.length - limitedCandidates.length);
-
     const updatedStore = await writeRatingsStore({
       ...store,
       ratingsByImdbId,
-      requestsUsed: ENABLE_UNLIMITED_TEST_REFRESH
-        ? store.requestsUsed
-        : store.requestsUsed + fetchedCount,
       lastRefreshAt: now.toISOString(),
     });
 
@@ -170,15 +127,7 @@ export async function POST(request) {
         fetchedCount,
         failedCount,
         skippedCached,
-        skippedByQuota,
         failedDetails,
-      },
-      quota: {
-        monthKey: updatedStore.monthKey,
-        requestsUsed: updatedStore.requestsUsed,
-        monthlyLimit: MONTHLY_LIMIT,
-        remaining: Math.max(0, MONTHLY_LIMIT - updatedStore.requestsUsed),
-        unlimitedTestMode: ENABLE_UNLIMITED_TEST_REFRESH,
       },
       lastRefreshAt: updatedStore.lastRefreshAt,
     });
