@@ -31,6 +31,32 @@ function normalizeStore(rawStore) {
 }
 
 
+const NULLABLE_RATING_VALUES = new Set([
+  '',
+  'N/A',
+  'not-found',
+  'rapidapi-not-rated-yet',
+  'rapidapi-not-fetched-yet',
+  'rapidapi-missing-imdb-id',
+]);
+
+function toNullableRatingValue(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim();
+    return NULLABLE_RATING_VALUES.has(normalized) ? null : normalized;
+  }
+
+  return value;
+}
+
 function toRatingRow(imdbId, rating, nowIso) {
   return {
     imdb_id: imdbId,
@@ -39,12 +65,12 @@ function toRatingRow(imdbId, rating, nowIso) {
     overview: rating.overview ?? null,
     poster: rating.poster ?? null,
     release_date: rating.releaseDate ?? null,
-    imdb_rating: rating.imdbRating ?? null,
-    imdb_status: rating.imdbStatus ?? null,
-    rotten_tomatoes: rating.rottenTomatoes ?? null,
-    rotten_tomatoes_status: rating.rottenTomatoesStatus ?? null,
-    metascore: rating.metascore ?? null,
-    metascore_status: rating.metascoreStatus ?? null,
+    imdb_rating: toNullableRatingValue(rating.imdbRating),
+    imdb_status: toNullableRatingValue(rating.imdbStatus),
+    rotten_tomatoes: toNullableRatingValue(rating.rottenTomatoes),
+    rotten_tomatoes_status: toNullableRatingValue(rating.rottenTomatoesStatus),
+    metascore: toNullableRatingValue(rating.metascore),
+    metascore_status: toNullableRatingValue(rating.metascoreStatus),
     source: rating.source ?? null,
     fetched_at: rating.fetchedAt ?? null,
     updated_at: nowIso,
