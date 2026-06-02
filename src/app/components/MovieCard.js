@@ -28,7 +28,6 @@ function formatRatingValue(value) {
   return String(value);
 }
 
-
 export default function MovieCard({ movie }) {
   const averateText = movie.averateDisplay === 'not-found' ? 'N/A' : movie.averateDisplay;
   const scoreToneClass = getAverateToneClass(movie.averateValue);

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Dashboard', matchStartsWith: true },
+  { href: '/', label: 'Dashboard', matchStartsWith: false },
   { href: '/settings', label: 'Settings', matchStartsWith: true },
 ];
 
@@ -24,7 +24,7 @@ export default function AppNavbar() {
     <header className="px-4 pt-4 sm:px-6 sm:pt-6">
       <nav className="averate-navbar mx-auto max-w-7xl rounded-full px-4 py-2 sm:px-6 sm:py-2.5" aria-label="Primary">
         <div className="flex flex-col gap-3 md:grid md:grid-cols-[1fr_auto_1fr] md:items-center">
-          <Link href="/dashboard" className="text-left averate-focus-ring rounded-xl px-1 py-1">
+          <Link href="/" className="text-left averate-focus-ring rounded-xl px-1 py-1">
             <p className="averate-logo text-slate-900">
               AVE<span className="averate-logo-accent">RATE</span>
             </p>

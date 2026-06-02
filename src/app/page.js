@@ -1,12 +1,11 @@
-
 import { getNowPlayingMovies } from '@/lib/services/tmdb.js';
 import { readRatingsStore } from '@/lib/services/ratingsStoreSupabase.js';
-import MovieDashboardClient from './DashboardClient';
+import MovieDashboardClient from './components/DashboardClient';
 
 export const dynamic = 'force-dynamic';
 
 const NOW_PLAYING_LANGUAGE = 'en-US';
-const MIN_DASHBOARD_POPULARITY = 30.000;
+const MIN_DASHBOARD_POPULARITY = 30.0;
 
 function parseNumericRating(value) {
   if (value === null || value === undefined) {
@@ -107,8 +106,8 @@ function mergeCachedRatings(baseMovies, ratingsByImdbId) {
     }
 
     const imdbRating = cached.imdbRating ?? movie.imdbRating;
-    const rottenTomatoesFallback = (imdbRating && imdbRating !== 'not-found') 
-      ? `${(Number.parseFloat(imdbRating) * 10).toFixed(0)}%` 
+    const rottenTomatoesFallback = imdbRating && imdbRating !== 'not-found'
+      ? `${(Number.parseFloat(imdbRating) * 10).toFixed(0)}%`
       : (cached.rottenTomatoes ?? movie.rottenTomatoes);
 
     return {

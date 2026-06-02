@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowDownUp, Star } from 'lucide-react';
-import MovieCard from './components/MovieCard';
+import MovieCard from './MovieCard';
 
 const RELEASE_MODE_NOW_PLAYING = 'now-playing';
 const RELEASE_MODE_UPCOMING = 'upcoming';
