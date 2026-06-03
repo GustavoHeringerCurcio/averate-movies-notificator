@@ -9,14 +9,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Show now-playing movies from TMDB.
 - Fetch ratings via RapidAPI only on manual refresh.
 - Store ratings in Supabase (single source of truth).
-- Keep the Send test message flow for Discord notifications.
+- Keep the manual Discord digest send flow for Discord notifications.
 
 # Data Flow
 
 - /api/movies/now-playing -> TMDB
 - /api/ratings/refresh -> RapidAPI -> Supabase movies
 - /api/ratings/cached -> Supabase movies -> UI
-- /api/notifications/test -> Discord webhook
+- /api/notifications/weekly-digest -> Discord webhook
 
 # Structure Notes
 

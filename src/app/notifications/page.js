@@ -7,8 +7,8 @@ const PROVIDER_DISCORD = 'discord';
 const PROVIDER_TELEGRAM = 'telegram';
 const PROVIDER_SLACK = 'slack';
 
-async function sendTestNotification(provider) {
-  const response = await fetch('/api/notifications/test', {
+async function sendWeeklyDigestNotification(provider) {
+  const response = await fetch('/api/notifications/weekly-digest', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -19,7 +19,7 @@ async function sendTestNotification(provider) {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    throw new Error(payload.error || 'Failed to send test message.');
+    throw new Error(payload.error || 'Failed to send Discord movie digest.');
   }
 
   return payload;
@@ -31,7 +31,7 @@ export default function NotificationsPage() {
   const [provider, setProvider] = useState(PROVIDER_DISCORD);
   const [discordWebhook, setDiscordWebhook] = useState('');
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const [sendingDigest, setSendingDigest] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
 
@@ -46,18 +46,20 @@ export default function NotificationsPage() {
     setSuccess('Settings saved locally for this session (persistence is coming soon).');
   };
 
-  const handleSendTest = async () => {
+  const handleSendDigest = async () => {
     setError('');
     setSuccess('');
-    setTesting(true);
+    setSendingDigest(true);
 
     try {
-      const payload = await sendTestNotification(provider);
-      setSuccess(payload?.message || 'Test message sent successfully.');
-    } catch (testError) {
-      setError(testError instanceof Error ? testError.message : 'Failed to send test message.');
+      const payload = await sendWeeklyDigestNotification(provider);
+      setSuccess(payload?.message || 'Discord movie digest sent successfully.');
+    } catch (sendError) {
+      setError(
+        sendError instanceof Error ? sendError.message : 'Failed to send Discord movie digest.'
+      );
     } finally {
-      setTesting(false);
+      setSendingDigest(false);
     }
   };
 
@@ -175,11 +177,11 @@ export default function NotificationsPage() {
         <section className="flex flex-wrap items-center justify-end gap-3">
           <button
             type="button"
-            onClick={handleSendTest}
-            disabled={testing || provider !== PROVIDER_DISCORD}
+            onClick={handleSendDigest}
+            disabled={sendingDigest || provider !== PROVIDER_DISCORD}
             className="averate-btn averate-btn-secondary rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {testing ? 'Sending test...' : 'Send test message'}
+            {sendingDigest ? 'Sending digest...' : 'Send Discord digest'}
           </button>
           <button
             type="button"

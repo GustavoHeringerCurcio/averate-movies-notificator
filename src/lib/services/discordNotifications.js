@@ -1,9 +1,22 @@
-import { NextResponse } from 'next/server';
 import { readRatingsStore } from '@/lib/services/ratingsStoreSupabase.js';
 
-export const runtime = 'nodejs';
+export const MIN_AVERATE_THRESHOLD = 7;
+const MAX_DISCORD_EMBEDS = 10;
+const MAX_MOVIE_EMBEDS = MAX_DISCORD_EMBEDS - 1;
 
-const MIN_AVERATE_THRESHOLD = 7;
+export class DiscordNotificationConfigError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'DiscordNotificationConfigError';
+  }
+}
+
+export class DiscordWebhookError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'DiscordWebhookError';
+  }
+}
 
 function parseNumericRating(value) {
   if (value === null || value === undefined) {
@@ -62,14 +75,6 @@ function computeAverate(movie) {
   };
 }
 
-function formatRatingValue(value) {
-  if (value === null || value === undefined || value === '' || value === 'not-found') {
-    return 'N/A';
-  }
-
-  return String(value);
-}
-
 function buildMovieDescription(movie) {
   if (movie.overview && String(movie.overview).trim() !== '') {
     return String(movie.overview).trim();
@@ -121,90 +126,65 @@ async function sendDiscordWebhookMessage(webhookUrl, payload) {
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Discord webhook request failed: ${details || response.status}`);
+    throw new DiscordWebhookError(
+      `Discord webhook request failed: ${details || response.status}`
+    );
   }
 }
 
-export async function POST(request) {
-  const body = await request.json().catch(() => ({}));
-  const provider = String(body?.provider || 'discord').toLowerCase();
-
-  if (provider !== 'discord') {
-    return NextResponse.json({ error: 'Unsupported notification provider.' }, { status: 400 });
-  }
-
+export async function sendWeeklyDiscordMovieDigest() {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
 
   if (!webhookUrl) {
-    return NextResponse.json(
-      { error: 'DISCORD_WEBHOOK_URL is not configured on the server.' },
-      { status: 500 }
+    throw new DiscordNotificationConfigError(
+      'DISCORD_WEBHOOK_URL is not configured on the server.'
     );
   }
 
-  try {
-    const store = await readRatingsStore();
-    const ratingsByImdbId = store?.ratingsByImdbId && typeof store.ratingsByImdbId === 'object'
+  const store = await readRatingsStore();
+  const ratingsByImdbId =
+    store?.ratingsByImdbId && typeof store.ratingsByImdbId === 'object'
       ? store.ratingsByImdbId
       : {};
 
-    const allMovies = Object.values(ratingsByImdbId)
-      .map((movie) => {
-        const averate = computeAverate(movie);
+  const allMovies = Object.values(ratingsByImdbId)
+    .map((movie) => {
+      const averate = computeAverate(movie);
 
-        return {
-          ...movie,
-          ...averate,
-        };
-      })
-      .filter((movie) => movie.averateValue !== null);
+      return {
+        ...movie,
+        ...averate,
+      };
+    })
+    .filter((movie) => movie.averateValue !== null);
 
-    const qualifiedMovies = allMovies
-      .filter((movie) => movie.averateValue >= MIN_AVERATE_THRESHOLD)
-      .sort((a, b) => b.averateValue - a.averateValue);
+  const qualifiedMovies = allMovies
+    .filter((movie) => movie.averateValue >= MIN_AVERATE_THRESHOLD)
+    .sort((a, b) => b.averateValue - a.averateValue);
 
-    const payload = qualifiedMovies.length === 0
+  const digestMovies = qualifiedMovies.slice(0, MAX_MOVIE_EMBEDS);
+
+  const payload =
+    digestMovies.length === 0
       ? {
           content:
             'New best movies for this week: no movies reached Averate 7.0+ in the current cache.',
         }
-      : buildWeeklyMoviesPayload(qualifiedMovies);
+      : buildWeeklyMoviesPayload(digestMovies);
 
-    try {
-      await sendDiscordWebhookMessage(webhookUrl, payload);
-    } catch (sendError) {
-      const details = sendError instanceof Error ? sendError.message : String(sendError);
-      return NextResponse.json(
-        {
-          error: 'Discord webhook request failed for all messages.',
-          details,
-        },
-        { status: 502 }
-      );
-    }
+  await sendDiscordWebhookMessage(webhookUrl, payload);
 
-    return NextResponse.json({
-      success: true,
-      provider,
-      message: 'Weekly test flow sent 1/1 Discord message(s).',
-      summary: {
-        minAverateThreshold: MIN_AVERATE_THRESHOLD,
-        qualifiedMovies: qualifiedMovies.length,
-        attemptedMessages: 1,
-        sentMessages: 1,
-        failedMessages: 0,
-      },
-      failures: [],
-    });
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-
-    return NextResponse.json(
-      {
-        error: 'Failed to call Discord webhook.',
-        details: errorMsg,
-      },
-      { status: 502 }
-    );
-  }
+  return {
+    provider: 'discord',
+    message: 'Weekly Discord movie digest sent 1/1 Discord message(s).',
+    summary: {
+      minAverateThreshold: MIN_AVERATE_THRESHOLD,
+      qualifiedMovies: qualifiedMovies.length,
+      notifiedMovies: digestMovies.length,
+      attemptedMessages: 1,
+      sentMessages: 1,
+      failedMessages: 0,
+    },
+    failures: [],
+  };
 }
