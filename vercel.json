@@ -1,8 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/ratings-refresh-test",
-      "schedule": "* * * * *"
+      "path": "/api/ratings/cron",
+      "schedule": "0 0 * * 4"
     }
   ]
 }
